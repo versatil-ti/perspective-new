@@ -23,14 +23,12 @@ RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN ln -s /opt/cmake/bin/ctest /usr/local/bin/ctest
 
 # Remove auditwheel for reinstall
-RUN rm -rf /opt/python/cp36-cp36m/bin/auditwheel
 RUN rm -rf /opt/python/cp37-cp37m/bin/auditwheel
 RUN rm -rf /opt/python/cp38-cp38/bin/auditwheel
 RUN rm -rf /opt/python/cp39-cp39/bin/auditwheel
 
 
 # Copy assets
-RUN cp -arf /opt/python/cp36-cp36m/* /usr/local/
 RUN cp -arf /opt/python/cp37-cp37m/* /usr/local/
 RUN cp -arf /opt/python/cp38-cp38/* /usr/local/
 RUN cp -arf /opt/python/cp39-cp39/* /usr/local/
@@ -38,13 +36,11 @@ RUN cp -arf /opt/python/cp39-cp39/* /usr/local/
 ENV PATH=/usr/local/bin:$PATH
 
 # Install dependencies
-RUN python3.6 -m pip install numpy scipy pybind11 cython codecov mock "black==20.8b1" flake8-black pytest pytest-cov traitlets ipywidgets faker psutil
 RUN python3.7 -m pip install numpy scipy pybind11 cython codecov mock "black==20.8b1" flake8-black pytest pytest-cov traitlets ipywidgets faker psutil
 RUN python3.8 -m pip install numpy scipy pybind11 cython codecov mock "black==20.8b1" flake8-black pytest pytest-cov traitlets ipywidgets faker psutil
 RUN python3.9 -m pip install numpy scipy pybind11 cython codecov mock "black==20.8b1" flake8-black pytest pytest-cov traitlets ipywidgets faker psutil
 
 # Install Auditwheel - not available on Python 2
-RUN python3.6 -m pip install --ignore-installed auditwheel
 RUN python3.7 -m pip install --ignore-installed auditwheel
 RUN python3.8 -m pip install --ignore-installed auditwheel
 RUN python3.9 -m pip install --ignore-installed auditwheel
@@ -56,7 +52,6 @@ RUN tar xfz boost_1_71_0.tar.gz
 RUN cd boost_1_71_0 && ./bootstrap.sh
 RUN cd boost_1_71_0 && ./b2 -j8 --with-program_options --with-filesystem --with-system install 
 
-RUN python3.6 -m pip install 'numpy>=1.13.1' 'pandas>=0.22.0' 'pyarrow>=8.0.0'
 RUN python3.7 -m pip install 'numpy>=1.13.1' 'pandas>=0.22.0' 'pyarrow>=8.0.0'
 RUN python3.8 -m pip install 'numpy>=1.13.1' 'pandas>=0.22.0' 'pyarrow>=8.0.0'
 RUN python3.9 -m pip install 'numpy>=1.13.1' 'pandas>=0.22.0' 'pyarrow>=8.0.0'
