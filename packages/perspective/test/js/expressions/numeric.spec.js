@@ -139,6 +139,28 @@ function validate_binary_operations(output, expressions, operator) {
 ((perspective) => {
     test.describe("Numeric operations", function () {
         test.describe("All numeric types", function () {
+            test.describe("aggregates", function () {
+                test("integer", async function () {
+                    const table = await perspective.table({
+                        a: "integer",
+                    });
+
+                    const view = await table.view({
+                        expressions: ['"a"'],
+                    });
+
+                    table.update({
+                        a: [10, 15, 20, 30],
+                    });
+
+                    const result = await view.to_columns();
+                    expect(result['"a"']).toEqual([10, 15, 20, 30]);
+                    expect(result["a"]).toEqual([10, 15, 20, 30]);
+                    await view.delete();
+                    await table.delete();
+                });
+            });
+
             test.describe("unary", function () {
                 test("negative", async function () {
                     const table = await perspective.table(
