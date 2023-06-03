@@ -6,13 +6,18 @@
 # the Apache License 2.0.  The full license can be found in the LICENSE file.
 #
 
-################################################################################
-#
-# Copyright (c) 2019, the Perspective Authors.
-#
-# This file is part of the Perspective library, distributed under the terms of
-# the Apache License 2.0.  The full license can be found in the LICENSE file.
-#
+
+# rename libpsppy.so and libpsp.so temporarily to ensure that client mode
+# works automatically when the C++ build fails.
+
+import os
+
+lib_path = os.path.join(os.path.dirname(__file__), "..", "..", "table")
+binding = os.path.join(lib_path, "libpsppy.so")
+new_binding = os.path.join(lib_path, "notlibpsppy.so")
+
+assert os.path.exists(binding)
+assert not os.path.exists(new_binding)
 
 import pandas as pd
 from perspective import Table, set_threadpool_size

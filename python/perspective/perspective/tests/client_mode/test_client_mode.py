@@ -18,19 +18,15 @@ from types import MethodType
 
 
 if os.name == "nt":
-    BINDING = "libbinding.pyd"
-    PSP = "libpsp.dll"
+    BINDING = "libpsppy.pyd"
 else:
-    BINDING = "libbinding.so"
-    PSP = "libpsp.so"
+    BINDING = "libpsppy.so"
 
-# rename libbinding.so and libpsp.so temporarily to ensure that client mode
+# rename libpsppy.so and libpsp.so temporarily to ensure that client mode
 # works automatically when the C++ build fails.
 lib_path = os.path.join(os.path.dirname(__file__), "..", "..", "table")
 binding = os.path.join(lib_path, BINDING)
-psp = os.path.join(lib_path, PSP)
-new_binding = os.path.join(lib_path, "notlibbinding.so")
-new_psp = os.path.join(lib_path, "notlibpsp.so")
+new_binding = os.path.join(lib_path, "notlibpsppy.so")
 
 
 def mock_post(self, msg, msg_id=None, assert_msg=None):
@@ -55,11 +51,8 @@ def rename_libraries():
 
     # rename the binding so it doesnt import
     os.rename(binding, new_binding)
-    os.rename(psp, new_psp)
     assert os.path.exists(new_binding)
-    assert os.path.exists(new_psp)
     assert not os.path.exists(binding)
-    assert not os.path.exists(psp)
 
     # import
     import perspective
@@ -69,11 +62,8 @@ def rename_libraries():
 
     # rename back
     os.rename(new_binding, binding)
-    os.rename(new_psp, psp)
     assert os.path.exists(binding)
-    assert os.path.exists(psp)
     assert not os.path.exists(new_binding)
-    assert not os.path.exists(new_psp)
 
     # unload from sys.modules
     unload()
@@ -137,11 +127,7 @@ class TestClient(object):
         import perspective
 
         assert perspective.is_libpsp() is False
-        data = {
-            "a": np.array(
-                [date(2020, i, 1) for i in range(1, 13)], dtype="datetime64[D]"
-            )
-        }
+        data = {"a": np.array([date(2020, i, 1) for i in range(1, 13)], dtype="datetime64[D]")}
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
         assert widget._data == {"a": ["2020-{:02d}-01".format(i) for i in range(1, 13)]}
@@ -159,9 +145,7 @@ class TestClient(object):
         import perspective
 
         assert perspective.is_libpsp() is False
-        data = pd.DataFrame(
-            {"a": [date(2020, i, 1) for i in range(1, 13)]}, dtype="datetime64[ns]"
-        )
+        data = pd.DataFrame({"a": [date(2020, i, 1) for i in range(1, 13)]}, dtype="datetime64[ns]")
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
         assert widget._data == {
@@ -173,9 +157,7 @@ class TestClient(object):
         import perspective
 
         assert perspective.is_libpsp() is False
-        data = pd.DataFrame(
-            {"a": [date(2020, i, 1) for i in range(1, 13)]}, dtype="object"
-        )
+        data = pd.DataFrame({"a": [date(2020, i, 1) for i in range(1, 13)]}, dtype="object")
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
         assert widget._data == {
@@ -190,9 +172,7 @@ class TestClient(object):
         data = {"a": [datetime(2020, i, 1, 12, 30, 45) for i in range(1, 13)]}
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
-        assert widget._data == {
-            "a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]
-        }
+        assert widget._data == {"a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]}
 
     def test_widget_client_np_datetime(self, rename_libraries):
         import perspective
@@ -206,24 +186,16 @@ class TestClient(object):
         }
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
-        assert widget._data == {
-            "a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]
-        }
+        assert widget._data == {"a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]}
 
     def test_widget_client_np_datetime_object(self, rename_libraries):
         import perspective
 
         assert perspective.is_libpsp() is False
-        data = {
-            "a": np.array(
-                [datetime(2020, i, 1, 12, 30, 45) for i in range(1, 13)], dtype="object"
-            )
-        }
+        data = {"a": np.array([datetime(2020, i, 1, 12, 30, 45) for i in range(1, 13)], dtype="object")}
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
-        assert widget._data == {
-            "a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]
-        }
+        assert widget._data == {"a": ["2020-{:02d}-01 12:30:45".format(i) for i in range(1, 13)]}
 
     def test_widget_client_df_datetime(self, rename_libraries):
         import perspective
@@ -268,9 +240,7 @@ class TestClient(object):
         import perspective
 
         assert perspective.is_libpsp() is False
-        data = np.array([(1, 2), (3, 4)], dtype=[("a", "int64"), ("b", "int64")]).view(
-            np.recarray
-        )
+        data = np.array([(1, 2), (3, 4)], dtype=[("a", "int64"), ("b", "int64")]).view(np.recarray)
         widget = perspective.PerspectiveWidget(data)
         assert hasattr(widget, "table") is False
         assert widget._data == {"a": [1, 3], "b": [2, 4]}
@@ -351,9 +321,7 @@ class TestClient(object):
         import perspective
 
         assert perspective.is_libpsp() is False
-        widget = perspective.PerspectiveWidget(
-            {"a": int, "b": float, "c": bool, "d": date, "e": datetime, "f": str}
-        )
+        widget = perspective.PerspectiveWidget({"a": int, "b": float, "c": bool, "d": date, "e": datetime, "f": str})
         assert hasattr(widget, "table") is False
         assert widget._data == {
             "a": "integer",
@@ -371,9 +339,7 @@ class TestClient(object):
         data = {"a": np.arange(0, 50)}
         comparison_data = {"a": [i for i in range(50)]}
         widget = perspective.PerspectiveWidget(data)
-        mocked_post = partial(
-            mock_post, assert_msg={"cmd": "update", "data": comparison_data}
-        )
+        mocked_post = partial(mock_post, assert_msg={"cmd": "update", "data": comparison_data})
         widget.post = MethodType(mocked_post, widget)
         widget.update(data)
         assert hasattr(widget, "table") is False
@@ -385,9 +351,7 @@ class TestClient(object):
         data = {"a": np.arange(0, 50)}
         new_data = {"a": [1]}
         widget = perspective.PerspectiveWidget(data)
-        mocked_post = partial(
-            mock_post, assert_msg={"cmd": "replace", "data": new_data}
-        )
+        mocked_post = partial(mock_post, assert_msg={"cmd": "replace", "data": new_data})
         widget.post = MethodType(mocked_post, widget)
         widget.replace(new_data)
         assert widget._data is new_data
@@ -471,9 +435,7 @@ class TestClient(object):
         ]
         tuples = list(zip(*arrays))
         index = pd.MultiIndex.from_tuples(tuples, names=["first", "second", "third"])
-        df_both = pd.DataFrame(
-            np.random.randn(3, 16), index=["A", "B", "C"], columns=index
-        )
+        df_both = pd.DataFrame(np.random.randn(3, 16), index=["A", "B", "C"], columns=index)
         widget = perspective.PerspectiveWidget(df_both)
         assert hasattr(widget, "table") is False
         assert widget.columns == ["value"]

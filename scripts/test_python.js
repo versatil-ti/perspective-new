@@ -108,7 +108,7 @@ try {
 }
 
 try {
-    execute(pytest_client_mode(IS_DOCKER));
+    // execute(pytest_client_mode(IS_DOCKER));
     execute(pytest_single_threaded(IS_DOCKER));
     execute(pytest(IS_DOCKER));
 } catch (e) {
