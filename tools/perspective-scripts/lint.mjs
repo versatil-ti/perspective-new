@@ -7,15 +7,18 @@
  *
  */
 
-const { run_with_scope } = require("./script_utils.js");
+import sh from "./sh.mjs";
 
-async function run() {
-    try {
-        await run_with_scope`build`;
-    } catch (e) {
-        console.log(e.message);
-        process.exit(1);
-    }
-}
+sh`
+prettier --check \
+    "examples/**/*.js" \
+    "examples/**/*.tsx" \
+    "tools/perspective-scripts/*.mjs" \
+    "rust/**/*.ts" \
+    "rust/**/*.js" \
+    "packages/**/*.js" \
+    "packages/**/*.ts" \
+    "cpp/**/*.js" \
+`.runSync();
 
-run();
+await import("./lint_python.mjs");

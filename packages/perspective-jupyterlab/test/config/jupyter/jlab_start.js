@@ -9,7 +9,9 @@
 const path = require("path");
 const { get } = require("http");
 const { spawn } = require("child_process");
-const { execute } = require("../../../../../scripts/script_utils");
+const {
+    execute,
+} = require("../../../../../tools/perspective-scripts/sh_perspective");
 
 const PACKAGE_ROOT = path.join(__dirname, "..", "..", "..");
 

@@ -7,10 +7,12 @@
  *
  */
 
-const execSync = require("child_process").execSync;
-const { promisify } = require("util");
-const exec_promise = promisify(require("child_process").exec);
-const path = require("path");
+import { execSync } from "child_process";
+import { exec } from "child_process";
+import * as path from "path";
+import * as url from "url";
+import chalk from "chalk";
+import * as _path from "path";
 
 const DEFAULT_OPTIONS = {
     env: { ...process.env },
@@ -20,31 +22,25 @@ const DEFAULT_OPTIONS = {
 class Command extends Function {
     #command;
     #options;
+    #modified_env;
 
+    /**
+     * Protected constructor as `Command` class is private to this module. Use
+     * `sh` factory function to construct isntances of `Command`.
+     * @param  {...any} args
+     */
     constructor(...args) {
         super();
         this.#command = parse_bind_args(...args);
         this.#options = structuredClone(DEFAULT_OPTIONS);
+        this.#modified_env = {};
         for (const prop of Object.getOwnPropertyNames(Command.prototype)) {
             this[prop] = this[prop].bind(this);
         }
     }
 
     /**
-     * Convert to a callable function.
-     * @returns {Proxy<Command>}
-     */
-    callable() {
-        const self = this;
-        return new Proxy(self, {
-            apply() {
-                return self.exec();
-            },
-        });
-    }
-
-    /**
-     * Calls `path.resolve` on the result of splitting the input string by the
+     * Calls `path.sh.path` on the result of splitting the input string by the
      * default path delimiter `/`, which allows writing simpler path statements
      * that will still be cross platform.  Can be used as an template literal.
      *
@@ -56,6 +52,7 @@ class Command extends Function {
     static path(strings, ...args) {
         return path.resolve(...depath(strings, ...args)).replace(/\\/g, "\\");
     }
+
     /**
      * Creates a new class which extends `Command`, but with a different
      * default environment `env`.
@@ -71,12 +68,17 @@ class Command extends Function {
         });
     }
 
+    cwd(cwd) {
+        this.#options.cwd = cwd;
+        return this;
+    }
+
     /**
      * Synchronously & fluently log this `Command`'s string representation.
      * @returns {Command}
      */
     log() {
-        process.stdout.write(`$ ${this.#command}\n`);
+        process.stdout.write(`> ${this.#command}\n`);
         return this;
     }
 
@@ -96,7 +98,7 @@ class Command extends Function {
      * @param  {...any} args
      * @returns
      */
-    and_sh(...args) {
+    sh(...args) {
         return this.#extend_sh("&&", ...args);
     }
 
@@ -117,6 +119,7 @@ class Command extends Function {
      * @returns
      */
     env(env) {
+        this.#modified_env = { ...this.#modified_env, ...env };
         this.#options.env = { ...this.#options.env, ...env };
         return this;
     }
@@ -126,7 +129,30 @@ class Command extends Function {
      * @returns {string} The script as a string
      */
     toString() {
-        return this.#command;
+        let cmd = this.#command;
+        if (Object.keys(this.#modified_env).length > 0) {
+            console.warn(
+                `${chalk.bgYellow.black` Warning `} env '${JSON.stringify(
+                    this.#modified_env
+                )}' won't serialize'`
+            );
+
+            for (const key of Object.keys(this.#modified_env)) {
+                cmd = `${sh(key)}=${this.#modified_env[key]} ${cmd}`;
+            }
+        }
+
+        if (typeof this.#options.cwd !== "undefined") {
+            console.warn(
+                `${chalk.bgYellow.black` Warning `} cwd '${
+                    this.#options.cwd
+                }' won't serialize`
+            );
+
+            cmd = `cd ${this.#options.cwd} && ${cmd}`;
+        }
+
+        return cmd;
     }
 
     /**
@@ -171,9 +197,29 @@ class Command extends Function {
      * Execute the command asynchronously, logging and returning the result.
      * @returns {string} The `Command`'s output.
      */
-    async exec() {
-        const obj = await exec_promise(this.#command, this.#options);
-        return obj.stdout.trim();
+    async exec({ silent = false } = { silent: false }) {
+        const options = {
+            ...this.#options,
+        };
+
+        return await new Promise((resolve, reject) => {
+            const subproc = exec(
+                this.#command,
+                options,
+                (err, stdout, strerr) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(stdout.trimEnd());
+                    }
+                }
+            );
+
+            if (!silent) {
+                subproc.stdout.pipe(process.stdout);
+                subproc.stderr.pipe(process.stderr);
+            }
+        });
     }
 
     toJSON() {
@@ -183,10 +229,6 @@ class Command extends Function {
     valueOf() {
         return this.toString();
     }
-
-    // then(f) {
-    //     return this.exec().then(f);
-    // }
 
     #extend_sh(joint, ...args) {
         const cmd = sh(...args);
@@ -211,20 +253,28 @@ class Command extends Function {
  * console.assert(
  *     bash`run -t${1} -u"${undefined}" task`,
  *    `run -t1 task`
- * );
+ * );s
  */
 const sh = new Proxy(Command, {
     apply(...args) {
-        return new Command(...args[2]).callable().callable();
+        return make_callable(new Command(...args[2]));
     },
 });
 
-exports.default = sh;
+export default sh;
 
 /*******************************************************************************
  *
  * Private
  */
+
+function make_callable(self) {
+    return new Proxy(self, {
+        apply() {
+            return self.exec();
+        },
+    });
+}
 
 function depath(strings, ...args) {
     if (Array.isArray(strings)) {
@@ -243,6 +293,10 @@ function depath(strings, ...args) {
 function parse_arg(arg) {
     if (typeof arg === "string") {
         return `"${arg.replace(/\"/g, '\\"')}"`;
+    } else if (arg instanceof Command) {
+        return arg;
+    } else if (typeof arg === "string" && arg.trim() === "") {
+        return null;
     } else {
         return arg;
     }
@@ -286,6 +340,23 @@ function parse_bind_args(fragments, ...args) {
         .trim();
 }
 
+process
+    .on("unhandledRejection", (reason, p) => {
+        console.error(
+            `${chalk.bgCyan.black` Unhandled Rejection `} ${chalk.bold(reason)}`
+        );
+    })
+    .on("uncaughtException", (err) => {
+        console.error(
+            `${chalk.bgRed.whiteBright.bold` Uncaught Exception `} ${chalk.bold(
+                err.message
+            )}`
+        );
+
+        console.debug(`\n${err.stack}\n`);
+        process.exit(1);
+    });
+
 /*******************************************************************************
  *
  * Tests
@@ -304,6 +375,10 @@ function run_suite(tests) {
 }
 
 async function run_tests() {
+    const __dirname = url
+        .fileURLToPath(new URL(".", import.meta.url))
+        .slice(0, -1);
+
     run_suite([
         [sh`run -t${1}`, `run -t1`],
         [sh`run -t${undefined}`, `run`],
@@ -350,13 +425,12 @@ async function run_tests() {
             `echo $(./execute launch_rockets)`,
         ],
         [
-            sh`cd python/perspective`.and_sh(sh`python3 setup.py`),
+            sh`cd python/perspective`.sh(sh`python3 setup.py`),
             `cd python/perspective && python3 setup.py`,
         ],
         [sh`--test="${undefined}.0" ${1}`, `1`],
         [sh`echo $TEST`.env({ TEST: "test" }).execSync(), `test`],
         [await sh`echo test`.exec(), `test`],
-        // [await sh`echo test`, `test`],
         [await sh`echo test`(), `test`],
         [sh.env({ TEST: "test2" })`echo $TEST`.execSync(), `test2`],
         [sh`echo ${sh.path`./test`}`, `echo \"${process.cwd()}/test\"`],
@@ -365,9 +439,114 @@ async function run_tests() {
             sh`echo ${sh.path`${__dirname}/test/obj`}`,
             `echo \"${__dirname}/test/obj\"`,
         ],
+        [
+            sh`echo $TEST`.env({ TEST: "test" }).toString(),
+            "TEST=test echo $TEST",
+        ],
+        [
+            sh(sh`echo $TEST`.env({ TEST: "test" })).toString(),
+            "TEST=test echo $TEST",
+        ],
+        [sh`echo ${sh`$TEST`.env({ TEST: "test2" })}`.toString(), "echo $TEST"],
     ]);
+
+    if (process.platform === "win32") {
+        run_suite([
+            [sh.path`a/b/c`, `${process.cwd()}\\a\\b\\c`],
+            [
+                sh.path`${__dirname}/../cpp/perspective`,
+                `${process.cwd()}\\cpp\\perspective`,
+            ],
+            [
+                sh.path`${__dirname}/../python/perspective/dist`,
+                _path.resolve(__dirname, "..", "python", "perspective", "dist"),
+            ],
+            [
+                sh.path`${__dirname}/../cpp/perspective`,
+                _path.resolve(__dirname, "..", "cpp", "perspective"),
+            ],
+            [
+                sh.path`${__dirname}/../cmake`,
+                _path.resolve(__dirname, "..", "cmake"),
+            ],
+            [
+                sh.path`${sh.path`${__dirname}/../python/perspective/dist`}/cmake`,
+                _path.resolve(
+                    _path.resolve(
+                        __dirname,
+                        "..",
+                        "python",
+                        "perspective",
+                        "dist"
+                    ),
+                    "cmake"
+                ),
+            ],
+            [
+                sh.path`${sh.path`${__dirname}/../python/perspective/dist`}/obj`,
+                _path.resolve(
+                    _path.resolve(
+                        __dirname,
+                        "..",
+                        "python",
+                        "perspective",
+                        "dist"
+                    ),
+                    "obj"
+                ),
+            ],
+        ]);
+    } else {
+        run_suite([
+            [sh.path`a/b/c`, `${process.cwd()}/a/b/c`],
+            [
+                sh.path`${__dirname}/../cpp/perspective`,
+                `${process.cwd()}/cpp/perspective`,
+            ],
+            [
+                sh.path`${__dirname}/../python/perspective/dist`,
+                _path.resolve(__dirname, "..", "python", "perspective", "dist"),
+            ],
+            [
+                sh.path`${__dirname}/../cpp/perspective`,
+                _path.resolve(__dirname, "..", "cpp", "perspective"),
+            ],
+            [
+                sh.path`${__dirname}/../cmake`,
+                _path.resolve(__dirname, "..", "cmake"),
+            ],
+            [
+                sh.path`${sh.path`${__dirname}/../python/perspective/dist`}/cmake`,
+                _path.resolve(
+                    _path.resolve(
+                        __dirname,
+                        "..",
+                        "python",
+                        "perspective",
+                        "dist"
+                    ),
+                    "cmake"
+                ),
+            ],
+            [
+                sh.path`${sh.path`${__dirname}/../python/perspective/dist`}/obj`,
+                _path.resolve(
+                    _path.resolve(
+                        __dirname,
+                        "..",
+                        "python",
+                        "perspective",
+                        "dist"
+                    ),
+                    "obj"
+                ),
+            ],
+        ]);
+    }
 }
 
-if (require.main === module) {
-    run_tests();
+if (import.meta.url.startsWith("file:")) {
+    if (process.argv[1] === url.fileURLToPath(import.meta.url)) {
+        run_tests();
+    }
 }
