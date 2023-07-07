@@ -113,19 +113,25 @@ export class WebSocketClient extends Client {
         }
     }
 
-    constructor(ws) {
+    constructor(ws, resolve, reject) {
         super();
         this._ws = ws;
         this._ws.binaryType = "arraybuffer";
         this._full_binary;
         this._total_chunk_length = 0;
         this._pending_binary_length = 0;
-
         this._ws.onopen = () => {
             this.send({
                 id: -1,
                 cmd: "init",
             });
+
+            resolve(this);
+        };
+
+        this._ws.onerror = (e) => {
+            console.error("Fart", e);
+            reject();
         };
 
         this._ping();

@@ -227,7 +227,9 @@ export function worker(config) {
  * @param {*} [config] An optional perspective config object override
  */
 export function websocket(url = window.location.origin.replace("http", "ws")) {
-    return new WebSocketClient(new WebSocket(url));
+    return new Promise((resolve, reject) => {
+        new WebSocketClient(new WebSocket(url), resolve, reject);
+    });
 }
 
 /**
