@@ -35,7 +35,8 @@
         overflow: hidden;
 
         &.heatmap,
-        &.treemap {
+        &.treemap,
+        &.xyscatter {
             d3fc-group.cartesian-chart {
                 grid-template-columns: minmax(0em, max-content) auto 1fr auto minmax(
                         0em,
@@ -102,6 +103,33 @@
 
         &.has-legend {
             padding-right: 120px;
+        }
+
+        &.xyscatter {
+            & .treemap-container {
+                position: relative;
+
+                & > svg {
+                    display: none;
+                }
+
+                &:not(:only-child) {
+                    width: calc(100% - 12px);
+                    height: calc(100% - 12px);
+                }
+            }
+
+            & .inner-container {
+                width: 100%;
+                height: 100%;
+                display: inline-grid;
+                padding: 0;
+                margin: 0;
+                overflow-x: hidden;
+                overflow-y: auto;
+
+              
+            }
         }
 
         &.treemap {
@@ -221,6 +249,7 @@
         & d3fc-canvas.plot-area {
             display: none;
         }
+
         &.xyscatter,
         &.xyline,
         &.ohlc,

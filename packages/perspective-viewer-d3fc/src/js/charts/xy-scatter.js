@@ -52,8 +52,9 @@ function interpolate_scale([x1, y1], [x2, y2]) {
     };
 }
 
-function xyScatter(container, settings) {
-    const data = pointData(settings, filterDataByGroup(settings));
+function xySingleScatter(container, settings, data) {
+    // const data = pointData(settings, filterDataByGroup(settings));
+    data = [data];
     const symbols = symbolTypeFromGroups(settings);
     let color = null;
     let legend = null;
@@ -72,7 +73,8 @@ function xyScatter(container, settings) {
                 color = seriesColorsFromDistinct(settings, data);
                 // TODO: Legend should have cartesian product labels (ColorBy|SplitBy)
                 // For now, just use monocolor legends.
-                legend = symbolLegend().settings(settings).scale(symbols);
+                // legend = symbolLegend().settings(settings).scale(symbols);
+                legend = colorLegend().settings(settings).scale(color);
             } else {
                 color = seriesColorsFromField(settings, colorByField);
                 legend = colorLegend().settings(settings).scale(color);
@@ -84,7 +86,7 @@ function xyScatter(container, settings) {
     } else {
         // always use default color
         color = colorScale().settings(settings).domain([""])();
-        legend = symbolLegend().settings(settings).scale(symbols);
+        // legend = symbolLegend().settings(settings).scale(symbols);
     }
 
     const size = settings.realValues[3]
@@ -159,6 +161,75 @@ function xyScatter(container, settings) {
     container.datum(data).call(zoomChart);
     container.call(toolTip);
     if (legend) container.call(legend);
+}
+
+import { gridLayoutMultiChart } from "../layout/gridLayoutMultiChart";
+// import { colorRangeLegend } from "../legend/colorRangeLegend";
+// import { colorLegend } from "../legend/legend";
+
+function xyScatter(container, settings) {
+    if (!settings.treemaps) settings.treemaps = {};
+
+    const data = pointData(settings, filterDataByGroup(settings));
+    // console.log(data);
+
+    // const data = treeData(settings);
+    // const color = treeColor(
+    //     settings,
+    //     data.map((d) => d.data)
+    // );
+
+    // if (color) {
+    //     this._container.classList.add("has-legend");
+    // }
+
+    const treemapGrid = gridLayoutMultiChart().elementsPrefix("treemap");
+    container.datum(data).call(treemapGrid);
+    // if (color) {
+    //     const color_column = settings.realValues[1];
+    //     if (
+    //         settings.mainValues.find((x) => x.name === color_column)?.type ===
+    //         "string"
+    //     ) {
+    //         const legend = colorLegend().settings(settings).scale(color);
+    //         container.call(legend);
+    //     } else {
+    //         const legend = colorRangeLegend().scale(color);
+    //         container.call(legend);
+    //     }
+    // }
+
+    const treemapEnter = treemapGrid.chartEnter();
+    const treemapDiv = treemapGrid.chartDiv();
+    const treemapTitle = treemapGrid.chartTitle();
+
+    treemapTitle.each((d, i, nodes) => d3.select(nodes[i]).text(d.key));
+    treemapEnter
+        .merge(treemapDiv)
+        .select("svg")
+        .select("g.treemap")
+        .each(function (x) {
+            console.log(x.key);
+            console.log(x);
+            const treemapSvg = d3.select(this);
+            if (!settings.treemaps[x.key]) settings.treemaps[x.key] = {};
+            xySingleScatter(
+                d3.select(d3.select(this.parentNode).node().parentNode),
+                settings,
+                x
+            );
+
+            // treemapSeries()
+            //     .settings(settings.treemaps[split], settings)
+            //     .data(data)
+            //     .container(
+            //         d3.select(d3.select(this.parentNode).node().parentNode)
+            //     )
+            //     .color(color)(treemapSvg);
+            // tooltip().settings(settings).centered(true)(
+            //     treemapSvg.selectAll("g")
+            // );
+        });
 }
 
 xyScatter.plugin = {
